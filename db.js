@@ -277,7 +277,46 @@ async function initTables(p) {
     await run(idx).catch(() => {});
   }
 
+  await seedDemoProducts(p);
+
   console.log("✅ Database jadvallari tayyor (Dadajon Tort)");
+}
+
+// Katalog bo'sh bo'lsa — namunaviy tortlar bilan to'ldiramiz (operator keyin o'zgartira/o'chira oladi)
+// "settings" jadvalidagi bir martalik flag orqali bajariladi — bir nechta server instansi
+// bir vaqtda ishga tushsa ham (masalan nodemon restart), faqat bittasi seed qiladi (atomic INSERT).
+async function seedDemoProducts(p) {
+  const { rowCount } = await p.query(
+    `INSERT INTO settings (key, value) VALUES ('products_seeded', 'true') ON CONFLICT (key) DO NOTHING`
+  );
+  if (rowCount === 0) return;
+
+  const { rows } = await p.query(`SELECT COUNT(*)::int AS n FROM products`);
+  if (rows[0].n > 0) return;
+
+  const img = (id) => `https://images.unsplash.com/photo-${id}?w=600&q=80&auto=format&fit=crop`;
+
+  const demo = [
+    ["Napoleon tort", "Tortlar", 120000, "1.0 kg", img("1578985545062-69928b1d9587"), true],
+    ["Red Velvet tort", "Tortlar", 150000, "1.2 kg", img("1586985289906-406988974504"), true],
+    ["Cheesecake", "Tortlar", 140000, "1.0 kg", img("1533134242443-d4fd215305ad"), false],
+    ["Vanil kapkeyk", "Kapkeyk", 18000, "80 g", img("1614707267537-b85aaf00c4b7"), false],
+    ["Shokoladli kapkeyk", "Kapkeyk", 20000, "80 g", img("1587668178277-295251f900ce"), true],
+    ["Mevali pirog", "Piroglar", 45000, "500 g", img("1519915028121-7d3463d20b13"), false],
+    ["Mille-feuille pirogi", "Piroglar", 25000, "300 g", img("1621303837174-89787a7d4729"), false],
+    ["Tiramisu", "Shirinliklar", 32000, "250 g", img("1571877227200-a0d98ea607e9"), true],
+    ["Makaron to'plami", "Shirinliklar", 28000, "200 g", img("1569864358642-9d1684040f43"), false],
+    ["Nikoh torti", "Maxsus", 450000, "3.0 kg", img("1535141192574-5d4897c12636"), true],
+  ];
+
+  for (const [name, category, price, weight, photo, isFeatured] of demo) {
+    await p.query(
+      `INSERT INTO products (name, category, price, weight, photo, is_featured, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,TRUE)`,
+      [name, category, price, weight, photo, isFeatured]
+    ).catch(() => {});
+  }
+  console.log("🌱 Namunaviy tortlar qo'shildi");
 }
 
 module.exports = { connect, query };
